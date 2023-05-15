@@ -551,7 +551,7 @@ def trainer(args):
             # We also save the modified macrogene values to a different file.
             species_genes_scores = make_centroids(X, all_gene_names, args.num_macrogenes, seed=args.seed)
             if not os.path.exists(os.path.dirname(args.centroids_init_path)):
-                os.mkdir(os.path.dirname(ags.centroids_init_path))
+                os.mkdir(os.path.dirname(args.centroids_init_path))
             with open(args.centroids_init_path, "wb") as f:
                 pickle.dump(species_genes_scores, f, protocol=4) # Save the scores dict
             print(f"Saved centroids to {args.centroids_init_path}")
