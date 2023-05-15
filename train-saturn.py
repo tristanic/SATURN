@@ -992,6 +992,10 @@ if __name__ == '__main__':
                         help='Path to csv containing label column mappings between species')
     parser.add_argument('--score_ref_labels', type=bool, nargs='?', const=True,
                         help='Use the ref labels to score instead of the labels.')
+    
+    # For optimisation purposes
+    parser.add_argument('--profile', type=bool, 
+                        help='Collect performance statistics')
     # Defaults
     parser.set_defaults(
         in_data=None,
@@ -1037,10 +1041,15 @@ if __name__ == '__main__':
         tissue_column="tissue_type",
         l1_penalty=0.0,
         pe_sim_penalty=1.0,
-        hv_span=0.3
+        hv_span=0.3,
+        profile=False
     )
 
     args = parser.parse_args()
+    if args.profile:
+        import cProfile
+        pr = cProfile.Profile()
+        pr.enable()
     torch.cuda.set_device(args.device_num)
     print(f"Using Device {args.device_num}")
     # Numpy seed
@@ -1056,4 +1065,8 @@ if __name__ == '__main__':
         ExperimentDatasetMultiEqual = ExperimentDatasetMulti
 
     trainer(args)
+    if args.profile:
+        pr.disable()
+        pr.dump_stats('saturn_run.profile')
+        pr.print_stats(sort='cumulative')
 
