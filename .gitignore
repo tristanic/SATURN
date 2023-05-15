@@ -1,2 +1,7 @@
 **/.ipynb_checkpoints/*
+**/__pycache__
 data/*.h5ad
+Vignettes/frog_zebrafish_embryogenesis/data/*.h5ad
+Vignettes/frog_zebrafish_embryogenesis/data/frog_zebrafish_run.csv
+Vignettes/frog_zebrafish_embryogenesis/data/*.tsv
+
