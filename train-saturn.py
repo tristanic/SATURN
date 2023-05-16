@@ -792,7 +792,7 @@ def trainer(args):
               equalize_triplets_species = args.equalize_triplets_species)
         epoch_df = pd.DataFrame.from_records(list(epoch_indices_counts.items()), columns=["Triplet", "Count"])
         epoch_df["Epoch"] = epoch
-        all_indices_counts = all_indices_counts.append(epoch_df)
+        all_indices_counts = pd.concat([all_indices_counts, epoch_df])
         
         if epoch%args.polling_freq==0:
             if use_batch_labels:
@@ -810,9 +810,9 @@ def trainer(args):
                                                     celltype_id_map, reftype_id_map)
             if args.score_adatas:
                 lr_row = stop_conditions.logreg_epoch_score(adata, epoch)
-                scores_df = scores_df.append(lr_row, ignore_index=True)
+                scores_df = pd.concat([scores_df, pd.DataFrame(lr_row)], ignore_index=True)
             mmd_row = stop_conditions.median_min_distance_score(adata, epoch)
-            scores_df = scores_df.append(mmd_row, ignore_index=True)
+            scores_df = pd.concat([scores_df, pd.DataFrame(mmd_row)], ignore_index=True)
                     
         if epoch%args.polling_freq==0:
             if use_batch_labels:
@@ -839,7 +839,7 @@ def trainer(args):
                 lr_cross_row["epoch"] = epoch
                 lr_cross_row["type"] = "cross_lr"
                 lr_cross_row["score"] = lr_cross_scores["species_2_logreg_accuracy"]
-                scores_df = scores_df.append(lr_cross_row, ignore_index=True)
+                scores_df = pd.concat([scores_df, pd.DataFrame(lr_cross_row)], ignore_index=True)
             
      # Write outputs to file
     print("Saving Final AnnData")
