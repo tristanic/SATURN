@@ -601,7 +601,6 @@ def trainer(args):
             all_refs = {species:adata.obs["ref_labels"] for (species, adata) in species_to_adata.items()},
             all_batch_labs = {}
         )
-
     hooks = logging_presets.get_hook_container(record_keeper)
     tester = testers.GlobalEmbeddingSpaceTester(
         end_of_testing_hook=hooks.end_of_testing_hook,

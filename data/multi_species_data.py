@@ -11,6 +11,8 @@ import torch.utils.data as data
 import torch
 import numpy as np
 import scanpy as sc
+import multiprocessing as mp
+import ctypes
 
 
 def data_to_torch_X(X):
@@ -19,6 +21,25 @@ def data_to_torch_X(X):
     if not isinstance(X, np.ndarray):
             X = X.toarray()
     return torch.from_numpy(X).float()
+
+def data_to_numpy_X(X):
+    if isinstance(X, sc.AnnData):
+        X = X.X
+    if not isinstance(X, np.ndarray):
+            X = X.toarray()
+    return np.array(X, dtype=np.float32)
+
+def data_to_shared_numpy_array(X):
+    if isinstance(X, sc.AnnData):
+        X = X.X
+    if not isinstance(X, np.ndarray):
+            X = X.toarray()
+    mp_dtype = np.ctypeslib.as_ctypes_type(X.dtype)
+    from math import prod
+    shared_array_base = mp.Array(mp_dtype, prod(X.shape))
+    shared_array = np.ctypeslib.as_array(shared_array_base.get_obj()).reshape(X.shape)
+    shared_array[:] = X
+    return shared_array
 
 class ExperimentDatasetMulti(data.Dataset):
     def __init__(self,
@@ -31,7 +52,7 @@ class ExperimentDatasetMulti(data.Dataset):
         self.batch_labels = {}
         
         for species, data in all_data.items():
-            X = data_to_torch_X(data)
+            X = data_to_shared_numpy_array(data)
             num_cells, num_genes = X.shape
             self.xs[species] = X
             self.num_cells[species] = num_cells
@@ -40,14 +61,14 @@ class ExperimentDatasetMulti(data.Dataset):
             
         self.ys = {}
         for species, y in all_ys.items():
-            y = torch.LongTensor(y)
+            y = data_to_shared_numpy_array(np.array(y, dtype=np.int64))
             self.ys[species] = y
         for species, ref in all_refs.items():
-            r = torch.LongTensor(ref)
+            r = data_to_shared_numpy_array(np.array(ref, dtype=np.int64))
             self.ref_labels[species] = r
         if len(all_batch_labs) != 0: # if we have an additional batch column like for tissue
             for species, tissue in all_batch_labs.items():
-                t = torch.LongTensor(tissue)
+                t = data_to_shared_numpy_array(np.array(tissue, dtype=np.int64))
                 self.batch_labels[species] = t
                 
         self.species = sorted(list(all_data.keys()))
@@ -89,7 +110,7 @@ class ExperimentDatasetMultiEqual(data.Dataset):
         self.max_cells = 0
         
         for species, data in all_data.items():
-            X = data_to_torch_X(data)
+            X = data_to_shared_numpy_array(data)
             num_cells, num_genes = X.shape
             self.xs[species] = X
             self.num_cells[species] = num_cells
@@ -100,14 +121,14 @@ class ExperimentDatasetMultiEqual(data.Dataset):
             
         self.ys = {}
         for species, y in all_ys.items():
-            y = torch.LongTensor(y)
+            y = data_to_shared_numpy_array(y)
             self.ys[species] = y
         for species, ref in all_refs.items():
-            r = torch.LongTensor(ref)
+            r = data_to_shared_numpy_array(ref)
             self.ref_labels[species] = r
         if len(all_batch_labs) != 0: # if we have an additional batch column like for tissue
             for species, tissue in all_batch_labs.items():
-                t = torch.LongTensor(tissue)
+                t = data_to_shared_numpy_array(tissue)
                 self.batch_labels[species] = t
         self.species = sorted(list(all_data.keys()))
         
@@ -144,7 +165,7 @@ class ExperimentDatasetMultiEqual(data.Dataset):
         return self.num_genes
     
 
-def multi_species_collate_fn(batch: List[Tuple[torch.FloatTensor, torch.LongTensor, str]]) -> dict:
+def multi_species_collate_fn(batch: List[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]]) -> dict:
     species_to_data = defaultdict(list)
     species_to_labels = defaultdict(list)
     species_to_refs = defaultdict(list)
@@ -166,9 +187,9 @@ def multi_species_collate_fn(batch: List[Tuple[torch.FloatTensor, torch.LongTens
     all_species = sorted(species_to_data)
     for species in all_species:
         if has_batch_labels:
-            data, labels, refs, batch_labels = torch.stack(species_to_data[species]), torch.stack(species_to_labels[species]), torch.stack(species_to_refs[species]), torch.stack(species_to_batch_labels[species])
+            data, labels, refs, batch_labels = torch.from_numpy(np.stack(species_to_data[species])), torch.LongTensor(species_to_labels[species]), torch.LongTensor(species_to_refs[species]), torch.LongTensor(species_to_batch_labels[species])
         else:
-            data, labels, refs, batch_labels = torch.stack(species_to_data[species]), torch.stack(species_to_labels[species]), torch.stack(species_to_refs[species]), None
+            data, labels, refs, batch_labels = torch.from_numpy(np.stack(species_to_data[species])), torch.LongTensor(species_to_labels[species]), torch.LongTensor(species_to_refs[species]), None
         
         batch_dict[species] = (data, labels, refs, batch_labels)
 
