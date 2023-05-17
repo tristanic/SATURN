@@ -134,7 +134,7 @@ def train(model, loss_func, mining_func, device,
         if batch_idx % 100 == 0:
             print("Epoch {} Iteration {}: Loss = {}, Number of mined triplets "
                   "= {}".format(epoch, batch_idx, loss,
-                                mining_func.num_triplets))
+                                mining_func.num_triplets)) 
 
 def pretrain_saturn(model, pretrain_loader, optimizer, device, nepochs, 
                        sorted_species_names, balance=False, use_batch_labels=False, embeddings_tensor=None):
@@ -275,7 +275,7 @@ def get_all_embeddings(dataset, model, device, use_batch_labels=False):
     use_batch_labels -- if we add batch labels as a categorical covariate
     '''
     test_loader = torch.utils.data.DataLoader(dataset, collate_fn=multi_species_collate_fn,
-                                        batch_size=1024, shuffle=False)
+                                        num_workers=args.num_workers, batch_size=1024, shuffle=False)
 
     model.eval()
     embs = []
@@ -321,7 +321,7 @@ def get_all_embeddings(dataset, model, device, use_batch_labels=False):
 
 def get_all_embeddings_metric(dataset, model, device, use_batch_labels=False):
     test_loader = torch.utils.data.DataLoader(dataset, collate_fn=multi_species_collate_fn,
-                                        batch_size=1024, shuffle=False)
+                                        num_workers=args.num_workers, batch_size=1024, shuffle=False)
     '''
     Get the embeddings and other metadata for a trained SATURN model.
 
@@ -646,7 +646,7 @@ def trainer(args):
     if args.pretrain:
         optim_pretrain = optim.Adam(pretrain_model.parameters(), lr=args.pretrain_lr)
         pretrain_loader = torch.utils.data.DataLoader(dataset, collate_fn=multi_species_collate_fn,
-                                        batch_size=args.pretrain_batch_size, shuffle=True)
+                                        batch_size=args.pretrain_batch_size, num_workers=args.num_workers, shuffle=True)
         
         pretrain_model = pretrain_saturn(pretrain_model, pretrain_loader, optim_pretrain, 
                                             args.device, args.pretrain_epochs, 
@@ -763,7 +763,7 @@ def trainer(args):
     #### START METRIC LEARNING ####
     ### pytorch-metric-learning stuff ###
     train_loader = torch.utils.data.DataLoader(metric_dataset, collate_fn=multi_species_collate_fn,
-                                        batch_size=args.batch_size, shuffle=True)
+                                        num_workers=args.num_workers, batch_size=args.batch_size, shuffle=True)
     
     
     distance = distances.CosineSimilarity()
@@ -887,6 +887,8 @@ if __name__ == '__main__':
     # Run Setup
     parser.add_argument('--in_data', type=str,
                         help='Path to csv containing input datas and species')
+    parser.add_argument('--num_workers', type=int,
+                        help='Number of worker processes to use in data loader (NOTE: these will dramatically increase memory usage)')
     parser.add_argument('--device', type=str,
                     help='Set GPU/CPU')
     parser.add_argument('--device_num', type=int,
@@ -999,6 +1001,7 @@ if __name__ == '__main__':
     # Defaults
     parser.set_defaults(
         in_data=None,
+        num_workers=0,
         org='saturn',
         in_label_col=None,
         ref_label_col="CL_class_coarse",
